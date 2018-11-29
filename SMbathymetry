@@ -1,0 +1,92 @@
+---
+title: "Bathymetry Maps for Santa Monica Basin data"
+author: "Kat Dawson"
+date: "March 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Load and/or install needed packages
+```{r library_load, message=FALSE}
+library(pacman)
+pacman::p_load(reshape2, ggplot2, vegan, gtools, stats, RColorBrewer, gplots, xlsx, marmap, plot3D, plot3Drgl, RNetCDF, lattice, ggrepel)
+``` 
+## Bathymetric maps using the marmap package.
+### See Pante and Simon-Bouhet 2013 PLOS one for more details
+### Santa Monica Basin bathymetry with marmap
+```{r SMB_bathymetry_marmap, fig.height=5, fig.width=5, message=FALSE}
+setwd("C:/Users/YourName/Desktop/Folder/Folder/Folder")
+
+#Download gridded bathymetry data from NOAA at https://maps.ngdc.noaa.gov/viewers/wcs-client/
+#File containes xyz data from NOAA for the Santa Monica Basin, comma delimited as below
+#Longitude Latitude Depth
+#-118.800000950399991 34.0000002720000083 -10
+bathy2=read.bathy("socal_bathy.csv",header=TRUE, sep=",")
+
+#This version of the bathymetry has higher resolution, needs subsampling, and is not a square
+#subsample to reduce bathy2 size
+n=3
+bathy2.lowres=bathy2[seq(1,nrow(bathy2),by=n),seq(1,ncol(bathy2),by=n)]
+class(bathy2.lowres)="bathy"
+
+#plot.bathy uses marmap
+plot.bathy(bathy2.lowres,image=TRUE,land=TRUE, lwd=1, bpal=globe2)
+scaleBathy(bathy2.lowres, deg=0.1, x="bottomleft", inset=5)
+```
+
+### Santa Monica Basin bathymetry with sites A-H identified
+```{r SMB_allsites, fig.width=5,fig.height=5,message=FALSE}
+#Download gridded bathymetry data from NOAA at https://maps.ngdc.noaa.gov/viewers/wcs-client/
+#File containes xyz data from NOAA for the Santa Monica Basin, space delimited as below
+#Longitude Latitude Depth
+#-118.800000950399991 34.0000002720000083 -10
+
+setwd("C:/Users/YourName/Desktop/Folder/Folder/Folder")
+bathy=read.bathy("socal_1as.xyz", header=TRUE, sep="")
+sites=read.table("sample_sites.txt",header=TRUE)
+
+#Other possible bathymetry/topo color paletes
+#sealand = c("#8C66FF", "#6A66FF", "#6684FF", "#66A7FF", "#66CAFF", "#66ECFF", "#66FFF0", "#66FFCE", "#66FFAB", "#66FF88", "#66FF66", "#88FF66", "#ABFF66", "#CEFF66", "#FFEEA6", "#FFD3A6", "#FFB8A6", "#FFAAB0", "#FFB5CB", "#FFC0E1")
+#topo = c("#C977D9", "#A18AE6", "#8AA2E6", "#8BD1E7", "#8AF3CF", "#85F38E", "#BDF385", "#EDE485", "#F0B086", "#DE9F8B", "#74A3B3", "#99CC70", "#DCD68E", "#EDDFAD", "#F7E8CA", "#FFF9F3", "#FFF9F6", "#FFFBF9", "#FFFCFA", "#FFFEFD")
+#globe = c("#9900FF", "#9900FF", "#7722FF", "#5544FF", "#3366FF", "#1188FF", "#1BA4FF", "#51BAFF", "#86D0FF", "#BCE6FF", "#336600", "#F3CA89", "#D9A627", "#A49019", "#9F7B0D", "#996600", "#B27676", "#C2B0B0", "#E5E5E5", "#FFFFFF")
+
+globe2 = c("#9900FF", "#7722FF", "#5544FF", "#3366FF", "#1188FF", "#1BA4FF", "#51BAFF", "#86D0FF", "#BCE6FF", "#336600", "#F3CA89","#D9A627")
+
+#2D plot with autoplot.bathy uses ggplot, seems to have reduced resolution
+bathy1=autoplot.bathy(bathy, geom=c("raster","contour"), coast=TRUE) + scale_fill_gradientn(colours=globe2, guide="colourbar", name=bquote("Depth (mbsf)")) + geom_point(data=sites, aes(x=Long, y=Lat)) + geom_label_repel(data=sites, aes(x=Long, y=Lat, label=Site)) + labs(x="Longitude", y="Latitude")
+ggsave(plot=bathy1,height=6,width=7,dpi=200,filename="SM_bathy_allsites.pdf", useDingbats=FALSE)
+```
+
+### Santa Monica Basin bathymetry focused on specific seamount
+```{r SMB_AGtransect, fig.width=5,fig.height=5,message=FALSE}
+#Download gridded bathymetry data from NOAA at https://maps.ngdc.noaa.gov/viewers/wcs-client/
+#File containes xyz data from NOAA for the Santa Monica Basin, space delimited as below
+#Longitude Latitude Depth
+#-118.800000950399991 34.0000002720000083 -10
+
+setwd("C:/Users/YourName/Desktop/Folder/Folder/Folder")
+bathy_AG=read.bathy("socal_1as_SMM.xyz", header=TRUE, sep="")
+sitesAG=read.table("sample_sites2.txt",header=TRUE)
+#This scale is not the same as above, expanded in order to see 20 m depth difference
+globe3 = c("#9900FF", "#7722FF", "#5544FF", "#3366FF", "#1188FF", "#1BA4FF")
+bathy2=autoplot.bathy(bathy_AG, geom=c("raster","contour"), coast=TRUE) + scale_fill_gradientn(colours=globe3, guide="colourbar", name=bquote("Depth (mbsf)")) + geom_point(data=sitesAG, aes(x=Long, y=Lat)) + geom_label_repel(data=sitesAG, aes(x=Long, y=Lat, label=Site)) + labs(x="Longitude", y="Latitude")
+ggsave(plot=bathy2,height=4,width=5,dpi=200,filename="SM_bathy_AGsites.pdf", useDingbats=FALSE)
+```
+
+### Santa Monica Basin bathymetry 3D image
+```{r SMB_3D_bathy, fig.height=5, fig.width=5, message=FALSE}
+setwd("C:/Users/YourName/Desktop/Folder/Folder/Folder")
+#The below file containes xyz data from NOAA for the Santa Monica Basin, space delimited as below
+#Longitude Latitude Depth
+#-118.800000950399991 34.0000002720000083 -10
+
+bathy=read.bathy("socal_1as.xyz", header=TRUE, sep="")
+
+#3D plot, aspect is the ratio of x/y, and the z dimensions. This takes a really long time to raster
+wireframe(unclass(bathy), shade=TRUE, aspect=c(1/1,0.2))
+```
+---
